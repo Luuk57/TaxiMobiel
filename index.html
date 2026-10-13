@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taxi Mobile Command Center</title>
+    <title>Taxi Mobile Command Center - Embedded Sync</title>
     <style>
         :root {
             --win-blue: #0078d7;
@@ -19,14 +19,10 @@
 
         .mobile-header {
             background: var(--card-bg); border-bottom: 1px solid var(--border-color);
-            padding: 10px 15px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 100;
+            padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100;
         }
-        .header-top { display: flex; justify-content: space-between; align-items: center; }
         .win-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
         .win-title span { color: var(--win-blue); }
-        
-        .sync-row { display: flex; gap: 6px; align-items: center; background: #eef6fc; padding: 4px 8px; border-radius: 4px; border: 1px solid #cce4f7; }
-        .sync-input { flex-grow: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
 
         /* TAB BAR VOOR MOBIEL */
         .tab-bar {
@@ -107,14 +103,8 @@
 <body>
 
     <div class="mobile-header">
-        <div class="header-top">
-            <div class="win-title"><span>🚖</span> TAXI MOBILE <span>// V2.2</span></div>
-            <div id="system-clock" style="font-size: 12px; color: #666; font-weight: 500;"></div>
-        </div>
-        <div class="sync-row">
-            <span style="font-size: 10px; font-weight: 600; color: #0078d7;">☁️ URL:</span>
-            <input type="text" id="sheets-url-input" class="sync-input" placeholder="Apps Script URL..." onblur="bewaarSyncUrlStil()">
-        </div>
+        <div class="win-title"><span>🚖</span> TAXI MOBILE <span>// V2.3</span></div>
+        <div id="system-clock" style="font-size: 12px; color: #666; font-weight: 500;"></div>
     </div>
 
     <!-- TAB NAVIGATIE -->
@@ -291,7 +281,8 @@
     </div>
 
     <script>
-        let googleSheetsUrl = localStorage.getItem('taxi_sheets_url') || '';
+        // Vaste Google Apps Script URL
+        const GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbwBnY36DiQmfxRgMieuVlMDRqaXH_sxV6rah3yVIgeqevIvQhN4U9wUnjvpEP05h7l9/exec";
         
         let configLijsten = {
             bedrijven: ['Vervoersbedrijf XYZ', 'Taxi Centrale Noord', 'Zorgvervoer Midden'],
@@ -306,10 +297,9 @@
         let huidigRecordIndex = 0;
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('sheets-url-input').value = googleSheetsUrl;
             vulDropdowns();
             laadConcepten();
-            if(googleSheetsUrl) syncFromGoogle();
+            syncFromGoogle();
         });
 
         setInterval(() => {
@@ -568,22 +558,14 @@
         }
 
         function formatDateTimeLocal(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-        
-        function bewaarSyncUrlStil() {
-            googleSheetsUrl = document.getElementById('sheets-url-input').value.trim();
-            localStorage.setItem('taxi_sheets_url', googleSheetsUrl);
-            if(googleSheetsUrl) syncFromGoogle();
-        }
 
         async function syncToGoogle(key, val) {
-            if (!googleSheetsUrl) return;
-            try { await fetch(googleSheetsUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ key: key, value: JSON.stringify(val) }) }); } catch(e){}
+            try { await fetch(GOOGLE_SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ key: key, value: JSON.stringify(val) }) }); } catch(e){}
         }
 
         async function syncFromGoogle() {
-            if (!googleSheetsUrl) return;
             try {
-                let res = await fetch(googleSheetsUrl); let data = await res.json();
+                let res = await fetch(GOOGLE_SHEETS_URL); let data = await res.json();
                 if(data['taxi_config']) { configLijsten = JSON.parse(data['taxi_config']); vulDropdowns(); }
                 if(data['taxi_planning']) { planningLijst = JSON.parse(data['taxi_planning']); sorterEnRenderPlanning(); }
                 if(data['taxi_historie']) { historieRecords = JSON.parse(data['taxi_historie']); renderHistorie(); }
