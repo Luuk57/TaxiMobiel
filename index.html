@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taxi Mobile Command Center</title>
+    <style>
+        :root {
+            --win-blue: #0078d7;
+            --win-bg: #f9f9f9;
+            --win-dark: #202020;
+            --card-bg: #ffffff;
+            --border-color: #d1d1d1;
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-ui); }
+        body, html { width: 100%; min-height: 100vh; background: var(--win-bg); color: var(--win-dark); }
+
+        .mobile-header {
+            background: var(--card-bg); border-bottom: 1px solid var(--border-color);
+            padding: 10px 15px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 100;
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .win-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .win-title span { color: var(--win-blue); }
+        
+        .sync-row { display: flex; gap: 6px; align-items: center; background: #eef6fc; padding: 4px 8px; border-radius: 4px; border: 1px solid #cce4f7; }
+        .sync-input { flex-grow: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
+
+        /* TAB BAR VOOR MOBIEL */
+        .tab-bar {
+            display: flex; background: #e5e5e5; border-bottom: 1px solid var(--border-color);
+        }
+        .tab-btn {
+            flex: 1; padding: 10px 0; font-size: 12px; font-weight: 600; background: #e0e0e0; border: none;
+            cursor: pointer; color: #444; text-align: center; outline: none; transition: 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--card-bg); color: var(--win-blue); border-bottom: 3px solid var(--win-blue); font-weight: bold;
+        }
+
+        .tab-content { display: none; padding: 12px; padding-bottom: 30px; }
+        .tab-content.active { display: block; }
+
+        .mobile-card {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            font-size: 12px; font-weight: 700; color: var(--win-blue);
+            margin-bottom: 10px; border-bottom: 2px solid var(--win-blue); padding-bottom: 4px;
+            text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: #555; margin-bottom: 3px; }
+        .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="datetime-local"], .form-group select, .form-group textarea {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; background: #fafafa;
+        }
+
+        .calc-box { background: #eef6fc; border-left: 4px solid var(--win-blue); padding: 8px; font-size: 12px; margin-top: 6px; border-radius: 4px; }
+
+        /* Mobiele Klokjes */
+        .sub-clock-box {
+            background: #1b1b1b; border-radius: 6px; padding: 10px; text-align: center; margin-bottom: 10px; border: 1px solid #333; cursor: pointer;
+        }
+        .border-green { border: 1px solid #28a745 !important; }
+        .border-red { border: 1px solid #dc3545 !important; }
+        .border-blue { border: 1px solid #0078d7 !important; }
+
+        .sub-clock-label { font-size: 9px; color: #aaa; text-transform: uppercase; margin-bottom: 2px; }
+        .sub-clock-display { font-size: 14px; font-weight: bold; font-family: monospace; }
+        .status-green { color: #28a745; }
+        .status-red { color: #dc3545; }
+        .status-blue { color: #00ffcc; }
+
+        /* Grote Stopwatch */
+        .big-clock-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #1b1b1b; border-radius: 8px; padding: 15px; text-align: center; border: 1px solid #333;
+        }
+        .big-clock-timer { font-size: 32px; font-weight: bold; font-family: monospace; color: #00ffcc; margin: 8px 0; }
+        .btn-stop-timer { background: #dc3545; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 12px; font-weight: bold; width: 100%; cursor: pointer; }
+
+        /* Centrale Opslaan Knop */
+        .btn-global-save {
+            width: 100%; background: #28a745; color: #fff; border: none; border-radius: 6px;
+            padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+
+        /* Tabellen en Archief */
+        .plan-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; background: #fff; }
+        .plan-table th, .plan-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .plan-table th { background: #0078d7; color: white; }
+
+        .record-navigator { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; }
+        .nav-btn { padding: 6px 12px; background: var(--win-blue); color: #fff; border: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
+
+        .btn-action { padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; color: #fff; font-weight: 600; }
+        .btn-edit { background: #ffc107; color: #000; }
+        .btn-delete { background: #dc3545; }
+        .btn-print { background: #28a745; width: 100%; padding: 8px; margin-top: 10px; border-radius: 4px; border: none; color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-header">
+        <div class="header-top">
+            <div class="win-title"><span>🚖</span> TAXI MOBILE <span>// V2.2</span></div>
+            <div id="system-clock" style="font-size: 12px; color: #666; font-weight: 500;"></div>
+        </div>
+        <div class="sync-row">
+            <span style="font-size: 10px; font-weight: 600; color: #0078d7;">☁️ URL:</span>
+            <input type="text" id="sheets-url-input" class="sync-input" placeholder="Apps Script URL..." onblur="bewaarSyncUrlStil()">
+        </div>
+    </div>
+
+    <!-- TAB NAVIGATIE -->
+    <div class="tab-bar">
+        <button class="tab-btn active" id="btn-tab-live" onclick="openTab('tab-live', 'btn-tab-live')">🚖 Live</button>
+        <button class="tab-btn" id="btn-tab-planning" onclick="openTab('tab-planning', 'btn-tab-planning')">📅 Planning</button>
+        <button class="tab-btn" id="btn-tab-historie" onclick="openTab('tab-historie', 'btn-tab-historie')">📁 Archief (<span id="count-gereed">0</span>)</button>
+    </div>
+
+    <!-- TAB 1: LIVE RIT -->
+    <div id="tab-live" class="tab-content active">
+        
+        <!-- Vak 1: Tijden -->
+        <div class="mobile-card">
+            <div class="card-header">
+                <span>⏱️ Tijden & Klokken</span>
+                <span style="font-size: 10px; color:#888;">Auto-Save</span>
+            </div>
+            
+            <div class="form-group">
+                <label>Geplande Ophaaltijd:</label>
+                <input type="datetime-local" id="t-ophalen" oninput="berekenRitTijden(); opslaanConceptVak1();">
+            </div>
+            <div class="sub-clock-box border-blue">
+                <div class="sub-clock-label">Ophaaltijd Status</div>
+                <div class="sub-clock-display status-green" id="clock-ophalen">--:--</div>
+            </div>
+            
+            <div class="form-group">
+                <label>Daadwerkelijk Vertrek:</label>
+                <input type="datetime-local" id="t-vertrek" oninput="opslaanConceptVak1();">
+            </div>
+            <div class="sub-clock-box border-green" onclick="zetHuidigeTijd('t-vertrek')">
+                <div class="sub-clock-label">⚡ Tik hier voor Huidige Tijd (Start Stopwatch)</div>
+                <div class="sub-clock-display status-green" id="clock-vertrek">Tik om in te stellen</div>
+            </div>
+
+            <div class="form-group">
+                <label>Verwachte / Werkelijke Aankomst:</label>
+                <input type="datetime-local" id="t-aankomst" oninput="berekenRitTijden(); opslaanConceptVak1();">
+            </div>
+            <div class="sub-clock-box border-red" onclick="zetHuidigeTijd('t-aankomst')">
+                <div class="sub-clock-label">⚡ Tik hier voor Huidige Tijd (Aankomst)</div>
+                <div class="sub-clock-display status-red" id="clock-aankomst">Tik om in te stellen</div>
+            </div>
+
+            <div class="calc-box" id="resultaten-tijden">
+                <b>Ritduur:</b> nog niet berekend
+            </div>
+        </div>
+
+        <!-- Vak 2: Route & Details -->
+        <div class="mobile-card">
+            <div class="card-header"><span>🚗 Route & Details</span></div>
+
+            <div class="form-group">
+                <label>Bedrijf:</label>
+                <select id="taxi-bedrijf" onchange="checkNieuweOptie(this, 'bedrijven')" onblur="opslaanConceptVak2()">
+                    <option value="">-- Selecteer Bedrijf --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Chauffeur:</label>
+                <select id="taxi-chauffeur" onchange="checkNieuweOptie(this, 'chauffeurs')" onblur="opslaanConceptVak2()">
+                    <option value="">-- Selecteer Chauffeur --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Haaladres:</label>
+                <select id="adres-haal" onchange="checkNieuweOptie(this, 'adressen')" onblur="opslaanConceptVak2()">
+                    <option value="">-- Selecteer Haaladres --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Brengadres:</label>
+                <select id="adres-breng" onchange="checkNieuweOptie(this, 'adressen')" onblur="opslaanConceptVak2()">
+                    <option value="">-- Selecteer Brengadres --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Vak 3: Stopwatch -->
+        <div class="mobile-card">
+            <div class="card-header"><span>🛑 Actieve Rit Stopwatch</span></div>
+            <div class="big-clock-container">
+                <div style="font-size: 10px; color: #aaa; text-transform: uppercase;">Lopende Tijd</div>
+                <div class="big-clock-timer" id="countdown-display">00:00:00</div>
+                <button class="btn-stop-timer" onclick="stopStopwatch()">STOP TIMER</button>
+            </div>
+        </div>
+
+        <!-- Vak 4: Notities -->
+        <div class="mobile-card">
+            <div class="card-header"><span>📝 Notities</span></div>
+            <textarea id="notities-text" placeholder="Bijv. wachttijd 15 min..." oninput="opslaanConceptVak4()" style="width:100%; height:80px; padding:8px; font-size:12px; border:1px solid #ccc; border-radius:4px;"></textarea>
+        </div>
+
+        <button class="btn-global-save" onclick="slaSessieDefinitiefOpOpEenRegel()">
+            💾 RIT OPSLAAN & SYNC
+        </button>
+    </div>
+
+    <!-- TAB 2: PLANNING -->
+    <div id="tab-planning" class="tab-content">
+        <div class="mobile-card">
+            <div class="card-header"><span>📅 Planning Invoeren</span></div>
+            
+            <div class="form-group">
+                <label>Eerste Datum & Tijd:</label>
+                <input type="datetime-local" id="plan-datum">
+            </div>
+
+            <div class="form-group">
+                <label>Herhaling:</label>
+                <select id="plan-herhaling" onchange="toggleEinddatumVeld()">
+                    <option value="geen">Eenmalig</option>
+                    <option value="elkedag">Elke dag</option>
+                    <option value="omdedag">Om de dag</option>
+                    <option value="mawovr">Ma - Wo - Vr</option>
+                    <option value="didoza">Di - Do - Za</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="einddatum-box" style="display: none;">
+                <label>Einddatum:</label>
+                <input type="date" id="plan-einddatum">
+            </div>
+
+            <div class="form-group">
+                <label>Soort Rit:</label>
+                <select id="plan-type">
+                    <option value="Ziekenvervoer">Ziekenvervoer</option>
+                    <option value="Rolstoelvervoer">Rolstoelvervoer</option>
+                    <option value="Zakelijk">Zakelijk</option>
+                    <option value="Prive">Privé</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Details / Route:</label>
+                <input type="text" id="plan-note" placeholder="Bedrijf of adres info...">
+            </div>
+
+            <button style="width:100%; padding:10px; background:var(--win-blue); color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:12px;" onclick="voegPlanningToe()">+ TOEVOEGEN AAN PLANNING</button>
+
+            <div style="margin-top: 15px;" class="card-header"><span>📋 Overzicht Planning</span></div>
+            <table class="plan-table">
+                <thead>
+                    <tr>
+                        <th>Datum / Tijd</th>
+                        <th>Type</th>
+                        <th style="width: 70px; text-align: center;">Actie</th>
+                    </tr>
+                </thead>
+                <tbody id="plan-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 3: ARCHIEF -->
+    <div id="tab-historie" class="tab-content">
+        <div class="record-navigator">
+            <button class="nav-btn" onclick="bladerRecord(-1)">◀ Vorige</button>
+            <span style="font-weight: 700; font-size: 12px; color: var(--win-blue);" id="record-counter-text">0 / 0</span>
+            <button class="nav-btn" onclick="bladerRecord(1)">Volgende ▶</button>
+        </div>
+
+        <div id="history-record-view">
+            <p style="text-align: center; color: #888; padding-top: 30px; font-size: 12px;">Geen ritten in archief.</p>
+        </div>
+    </div>
+
+    <script>
+        let googleSheetsUrl = localStorage.getItem('taxi_sheets_url') || '';
+        
+        let configLijsten = {
+            bedrijven: ['Vervoersbedrijf XYZ', 'Taxi Centrale Noord', 'Zorgvervoer Midden'],
+            chauffeurs: ['Jan de Vries', 'Piet Jansen', 'Klaas Bakker'],
+            adressen: ['Hoofdstraat 1, Groningen', 'Ziekenhuisweg 10, Assen', 'Stationsplein 5, Emmen']
+        };
+
+        let stopwatchStartTijd = null;
+        let stopwatchGestopt = false;
+        let planningLijst = [];
+        let historieRecords = [];
+        let huidigRecordIndex = 0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('sheets-url-input').value = googleSheetsUrl;
+            vulDropdowns();
+            laadConcepten();
+            if(googleSheetsUrl) syncFromGoogle();
+        });
+
+        setInterval(() => {
+            document.getElementById('system-clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            updateAllSubClocks();
+            updateStopwatch();
+        }, 1000);
+
+        function openTab(tabId, btnId) {
+            let contents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < contents.length; i++) { contents[i].classList.remove('active'); }
+            let buttons = document.getElementsByClassName('tab-btn');
+            for (let i = 0; i < buttons.length; i++) { buttons[i].classList.remove('active'); }
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById(btnId).classList.add('active');
+        }
+
+        function vulDropdowns() {
+            laadOptiesInSelect('taxi-bedrijf', configLijsten.bedrijven, '-- Selecteer Bedrijf --');
+            laadOptiesInSelect('taxi-chauffeur', configLijsten.chauffeurs, '-- Selecteer Chauffeur --');
+            laadOptiesInSelect('adres-haal', configLijsten.adressen, '-- Selecteer Haaladres --');
+            laadOptiesInSelect('adres-breng', configLijsten.adressen, '-- Selecteer Brengadres --');
+        }
+
+        function laadOptiesInSelect(elementId, items, placeholder) {
+            let sel = document.getElementById(elementId);
+            let huidigeWaarde = sel.value;
+            sel.innerHTML = `<option value="">${placeholder}</option>`;
+            items.forEach(item => {
+                let opt = document.createElement('option');
+                opt.value = item;
+                opt.innerText = item;
+                sel.appendChild(opt);
+            });
+            let extraOpt = document.createElement('option');
+            extraOpt.value = "VOEG_NIEUWE_TOE";
+            extraOpt.innerText = "+ Voeg nieuwe toe...";
+            sel.appendChild(extraOpt);
+            sel.value = huidigeWaarde;
+        }
+
+        function checkNieuweOptie(selectElem, categorie) {
+            if (selectElem.value === "VOEG_NIEUWE_TOE") {
+                let nieuweWaarde = prompt("Voer nieuwe waarde in:");
+                if (nieuweWaarde && nieuweWaarde.trim() !== "") {
+                    nieuweWaarde = nieuweWaarde.trim();
+                    if (!configLijsten[categorie].includes(nieuweWaarde)) {
+                        configLijsten[categorie].push(nieuweWaarde);
+                        syncToGoogle('taxi_config', configLijsten);
+                    }
+                    vulDropdowns();
+                    selectElem.value = nieuweWaarde;
+                } else {
+                    selectElem.value = "";
+                }
+            }
+            opslaanConceptVak2();
+        }
+
+        function zetHuidigeTijd(elementId) {
+            let nu = new Date();
+            let formattedLocal = formatDateTimeLocal(nu);
+            document.getElementById(elementId).value = formattedLocal;
+            
+            if(elementId === 't-vertrek') {
+                stopwatchStartTijd = nu;
+                stopwatchGestopt = false;
+                opslaanConceptVak1();
+            }
+            if(elementId === 't-aankomst') {
+                opslaanConceptVak1();
+            }
+            berekenRitTijden();
+            updateAllSubClocks();
+        }
+
+        function stopStopwatch() {
+            stopwatchGestopt = true;
+            let aankVal = document.getElementById('t-aankomst').value;
+            if(!aankVal) zetHuidigeTijd('t-aankomst');
+        }
+
+        function updateStopwatch() {
+            let timerDisplay = document.getElementById('countdown-display');
+            let vertVal = document.getElementById('t-vertrek').value;
+            if (!vertVal) { timerDisplay.innerText = "00:00:00"; return; }
+            if (!stopwatchStartTijd) stopwatchStartTijd = new Date(vertVal);
+            if (stopwatchGestopt) return;
+
+            let diffMs = new Date() - stopwatchStartTijd;
+            if(diffMs < 0) diffMs = 0;
+            let u = Math.floor(diffMs / (1000 * 60 * 60));
+            let m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            let s = Math.floor((diffMs % (1000 * 60)) / 1000);
+            timerDisplay.innerText = `${String(u).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
+        function updateAllSubClocks() {
+            let nu = new Date();
+            let ophVal = document.getElementById('t-ophalen').value;
+            let clockOphalen = document.getElementById('clock-ophalen');
+            if (!ophVal) {
+                clockOphalen.innerText = "--:--";
+                clockOphalen.className = "sub-clock-display status-green";
+            } else {
+                let diffMs = new Date(ophVal) - nu;
+                let diffMin = Math.floor(Math.abs(diffMs) / (1000 * 60));
+                let u = Math.floor(diffMin / 60);
+                let m = diffMin % 60;
+                if (diffMs > 0) {
+                    clockOphalen.innerText = `Nog ${u > 0 ? u + 'u ' : ''}${m}m (OP TIJD)`;
+                    clockOphalen.className = "sub-clock-display status-green";
+                } else {
+                    if (diffMin <= 15) {
+                        clockOphalen.innerText = `+${diffMin}m - OP TIJD`;
+                        clockOphalen.className = "sub-clock-display status-green";
+                    } else {
+                        clockOphalen.innerText = `+${diffMin}m - TE LAAT`;
+                        clockOphalen.className = "sub-clock-display status-red";
+                    }
+                }
+            }
+        }
+
+        function toggleEinddatumVeld() {
+            let mode = document.getElementById('plan-herhaling').value;
+            document.getElementById('einddatum-box').style.display = (mode === 'geen') ? 'none' : 'block';
+        }
+
+        function voegPlanningToe() {
+            let startVal = document.getElementById('plan-datum').value;
+            let mode = document.getElementById('plan-herhaling').value;
+            let eindVal = document.getElementById('plan-einddatum').value;
+            let type = document.getElementById('plan-type').value;
+            let note = document.getElementById('plan-note').value;
+
+            if (!startVal) { alert("Kies datum & tijd"); return; }
+            let startDatum = new Date(startVal);
+            let eindDatum = eindVal ? new Date(eindVal + 'T23:59:59') : new Date(startDatum);
+
+            let huidigeDatum = new Date(startDatum);
+            while (huidigeDatum <= eindDatum) {
+                let dag = huidigeDatum.getDay();
+                let toe = (mode === 'geen' || mode === 'elkedag' || mode === 'omdedag' || 
+                           (mode === 'mawovr' && (dag === 1 || dag === 3 || dag === 5)) || 
+                           (mode === 'didoza' && (dag === 2 || dag === 4 || dag === 6)));
+                if (toe) {
+                    planningLijst.push({ id: Date.now() + Math.random(), datum: new Date(huidigeDatum).toISOString(), type, note });
+                }
+                huidigeDatum.setDate(huidigeDatum.getDate() + (mode === 'omdedag' ? 2 : 1));
+                if (mode === 'geen') break;
+            }
+            sorterEnRenderPlanning();
+            syncToGoogle('taxi_planning', planningLijst);
+            document.getElementById('plan-datum').value = '';
+            document.getElementById('plan-note').value = '';
+        }
+
+        function sorterEnRenderPlanning() {
+            planningLijst.sort((a, b) => new Date(a.datum) - new Date(b.datum));
+            let body = document.getElementById('plan-table-body');
+            body.innerHTML = '';
+            planningLijst.forEach((p) => {
+                let d = new Date(p.datum);
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b><br><span style="font-size:10px; color:#666;">${p.note || '-'}</span></td>
+                    <td>${p.type}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-action btn-edit" onclick="laadPlanningInLive('${p.datum}', '${p.type}', '${p.note || ''}')">Laad</button>
+                        <button class="btn-action btn-delete" onclick="verwijderPlanningItem('${p.id}')">✕</button>
+                    </td>`;
+                body.appendChild(tr);
+            });
+        }
+
+        function verwijderPlanningItem(id) {
+            planningLijst = planningLijst.filter(p => p.id != id);
+            sorterEnRenderPlanning();
+            syncToGoogle('taxi_planning', planningLijst);
+        }
+
+        function laadPlanningInLive(datumIso, type, note) {
+            document.getElementById('t-ophalen').value = formatDateTimeLocal(new Date(datumIso));
+            document.getElementById('plan-note').value = note;
+            opslaanConceptVak1();
+            openTab('tab-live', 'btn-tab-live');
+        }
+
+        function slaSessieDefinitiefOpOpEenRegel() {
+            let completeRit = {
+                datumSync: new Date().toISOString(),
+                tijden: localStorage.getItem('taxi_draft_vak1') ? JSON.parse(localStorage.getItem('taxi_draft_vak1')) : {},
+                routeEnDetails: localStorage.getItem('taxi_draft_vak2') ? JSON.parse(localStorage.getItem('taxi_draft_vak2')) : {},
+                notities: localStorage.getItem('taxi_draft_vak4') || ''
+            };
+            historieRecords.unshift(completeRit);
+            syncToGoogle('taxi_historie', historieRecords);
+            renderHistorie();
+            alert("Rit opgeslagen en gesynchroniseerd!");
+        }
+
+        function renderHistorie() {
+            document.getElementById('count-gereed').innerText = historieRecords.length;
+            let counter = document.getElementById('record-counter-text');
+            let view = document.getElementById('history-record-view');
+            if(historieRecords.length === 0) { counter.innerText = "0 / 0"; view.innerHTML = `<p style="text-align:center; color:#888; padding-top:20px;">Geen ritten.</p>`; return; }
+            counter.innerText = `${huidigRecordIndex + 1} / ${historieRecords.length}`;
+            let rec = historieRecords[huidigRecordIndex];
+            let t = rec.tijden || {}; let r = rec.routeEnDetails || {};
+            view.innerHTML = `
+                <div class="mobile-card">
+                    <div class="card-header"><span>Rapport (${new Date(rec.datumSync).toLocaleDateString()})</span></div>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Bedrijf:</b> ${r.bedrijf || '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Chauffeur:</b> ${r.chauffeur || '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Haal:</b> ${r.haaladres || '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Breng:</b> ${r.brengadres || '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Ophaal:</b> ${t.ophalen ? new Date(t.ophalen).toLocaleTimeString() : '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Vertrek:</b> ${t.vertrek ? new Date(t.vertrek).toLocaleTimeString() : '-'}</p>
+                    <p style="font-size:12px; margin-bottom:6px;"><b>Aankomst:</b> ${t.aankomst ? new Date(t.aankomst).toLocaleTimeString() : '-'}</p>
+                    <button class="btn-print" onclick="window.print()">🖨️ Print / PDF</button>
+                </div>`;
+        }
+
+        function bladerRecord(r) {
+            huidigRecordIndex += r;
+            if(huidigRecordIndex < 0) huidigRecordIndex = 0;
+            if(huidigRecordIndex >= historieRecords.length) huidigRecordIndex = historieRecords.length - 1;
+            renderHistorie();
+        }
+
+        function opslaanConceptVak1() { localStorage.setItem('taxi_draft_vak1', JSON.stringify({ ophalen: document.getElementById('t-ophalen').value, vertrek: document.getElementById('t-vertrek').value, aankomst: document.getElementById('t-aankomst').value })); }
+        function opslaanConceptVak2() { localStorage.setItem('taxi_draft_vak2', JSON.stringify({ bedrijf: document.getElementById('taxi-bedrijf').value, chauffeur: document.getElementById('taxi-chauffeur').value, haaladres: document.getElementById('adres-haal').value, brengadres: document.getElementById('adres-breng').value })); }
+        function opslaanConceptVak4() { localStorage.setItem('taxi_draft_vak4', document.getElementById('notities-text').value); }
+
+        function laadConcepten() {
+            let d1 = localStorage.getItem('taxi_draft_vak1');
+            if(d1) { let d = JSON.parse(d1); document.getElementById('t-ophalen').value = d.ophalen || ''; document.getElementById('t-vertrek').value = d.vertrek || ''; document.getElementById('t-aankomst').value = d.aankomst || ''; }
+            let d2 = localStorage.getItem('taxi_draft_vak2');
+            if(d2) { let d = JSON.parse(d2); document.getElementById('taxi-bedrijf').value = d.bedrijf || ''; document.getElementById('taxi-chauffeur').value = d.chauffeur || ''; document.getElementById('adres-haal').value = d.haaladres || ''; document.getElementById('adres-breng').value = d.brengadres || ''; }
+            let d4 = localStorage.getItem('taxi_draft_vak4'); if(d4) document.getElementById('notities-text').value = d4;
+        }
+
+        function berekenRitTijden() {
+            let vert = document.getElementById('t-vertrek').value;
+            let aank = document.getElementById('t-aankomst').value;
+            let res = document.getElementById('resultaten-tijden');
+            if (vert && aank) {
+                let diff = new Date(aank) - new Date(vert);
+                if (diff >= 0) {
+                    let u = Math.floor(diff / (1000 * 60 * 60));
+                    let m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    res.innerHTML = `<b>Ritduur:</b> ${u}u ${m}m`;
+                }
+            }
+        }
+
+        function formatDateTimeLocal(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+        
+        function bewaarSyncUrlStil() {
+            googleSheetsUrl = document.getElementById('sheets-url-input').value.trim();
+            localStorage.setItem('taxi_sheets_url', googleSheetsUrl);
+            if(googleSheetsUrl) syncFromGoogle();
+        }
+
+        async function syncToGoogle(key, val) {
+            if (!googleSheetsUrl) return;
+            try { await fetch(googleSheetsUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ key: key, value: JSON.stringify(val) }) }); } catch(e){}
+        }
+
+        async function syncFromGoogle() {
+            if (!googleSheetsUrl) return;
+            try {
+                let res = await fetch(googleSheetsUrl); let data = await res.json();
+                if(data['taxi_config']) { configLijsten = JSON.parse(data['taxi_config']); vulDropdowns(); }
+                if(data['taxi_planning']) { planningLijst = JSON.parse(data['taxi_planning']); sorterEnRenderPlanning(); }
+                if(data['taxi_historie']) { historieRecords = JSON.parse(data['taxi_historie']); renderHistorie(); }
+            } catch(e){}
+        }
+    </script>
+</body>
+</html>
